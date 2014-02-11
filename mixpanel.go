@@ -84,13 +84,10 @@ func (m *Mixpanel) makeRequestWithData(method string, endpoint string, data map[
 		return resp, err
 	}
 
-	fmt.Println(string(json))
-
 	dataStr := base64.StdEncoding.EncodeToString(json)
 	if err != nil {
 		return resp, err
 	}
-	fmt.Println(string(dataStr))
 
 	return m.makeRequest(method, endpoint, map[string]string{"data": dataStr})
 }
@@ -103,7 +100,7 @@ func (m *Mixpanel) Track(distinctId string, event string, params map[string]stri
 	params["mp_lib"] = "timehop/go-mixpanel"
 
 	data := map[string]interface{}{"event": event, "properties": params}
-	resp, err := m.makeRequestWithData("GET", "track", data)
+	_, err := m.makeRequestWithData("GET", "track", data)
 	if err != nil {
 		return err
 	}
