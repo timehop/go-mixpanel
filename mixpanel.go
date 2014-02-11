@@ -1,155 +1,112 @@
 package mixpanel
 
 import (
-	"bytes"
-	"crypto/md5"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"sort"
 	"strings"
-	"time"
 )
 
 const (
-	DEFAULT_EXPIRE_IN_DAYS int64 = 5
+	mixpanelApiBaseUrl = "http://api.mixpanel.com"
 )
 
 type Mixpanel struct {
-	ApiKey  string
-	Secret  string
-	Format  string
+	Token   string
 	BaseUrl string
 }
 
-type EventQueryResult struct {
-	LegendSize int `json:legend_size`
-	Data       struct {
-		Series []string                  `json:series`
-		Values map[string]map[string]int `json:values`
-	} `json:data`
-}
-
-type ExportQueryResult struct {
-	Event      string                 `json:event`
-	Properties map[string]interface{} `json:properties`
-}
-
-func NewMixpanel(key string, secret string) *Mixpanel {
+func NewMixpanel(token string) *Mixpanel {
 	m := new(Mixpanel)
-	m.Secret = secret
-	m.ApiKey = key
-	m.Format = "json"
-	m.BaseUrl = "http://mixpanel.com/api/2.0"
+	m.Token = token
+	m.BaseUrl = mixpanelApiBaseUrl
 	return m
 }
 
-func (m *Mixpanel) AddExpire(params *map[string]string) {
-	if (*params)["expire"] == "" {
-		(*params)["expire"] = fmt.Sprintf("%d", ExpireInDays(DEFAULT_EXPIRE_IN_DAYS))
-	}
-}
+func (m *Mixpanel) makeRequest(method string, endpoint string, paramMap map[string]string) ([]byte, error) {
+	var (
+		err error
+		req *http.Request
+		b   io.Reader
+	)
 
-func (m *Mixpanel) AddSig(params *map[string]string) {
-	keys := make([]string, 0)
-
-	(*params)["api_key"] = m.ApiKey
-	(*params)["format"] = m.Format
-
-	for k, _ := range *params {
-		keys = append(keys, k)
-	}
-	sort.StringSlice(keys).Sort()
-	// fmt.Println(s)
-
-	var buffer bytes.Buffer
-	for _, key := range keys {
-		value := (*params)[key]
-		buffer.WriteString(fmt.Sprintf("%s=%s", key, value))
-	}
-	buffer.WriteString(m.Secret)
-	// fmt.Println(buffer.String())
-
-	hash := md5.New()
-	hash.Write(buffer.Bytes())
-	sigHex := fmt.Sprintf("%x", hash.Sum([]byte{}))
-	(*params)["sig"] = sigHex
-}
-
-func (m *Mixpanel) makeRequest(action string, params map[string]string) ([]byte, error) {
-	m.AddExpire(&params)
-	m.AddSig(&params)
-
-	var buffer bytes.Buffer
-	for key, value := range params {
-		value = url.QueryEscape(value)
-		buffer.WriteString(fmt.Sprintf("%s=%s&", key, value))
+	if endpoint == "" {
+		return []byte{}, errors.New("Endpoint missing")
 	}
 
-	uri := fmt.Sprintf("%s/%s?%s", m.BaseUrl, action, buffer.String())
-	uri = uri[:len(uri)-1]
-	// fmt.Println(uri)
-	client := new(http.Client)
-	req, err := http.NewRequest("GET", uri, nil)
+	endpoint = fmt.Sprintf("%v/%v", m.BaseUrl, endpoint)
+
+	if paramMap == nil {
+		paramMap = map[string]string{}
+	}
+
+	params := url.Values{}
+	for k, v := range paramMap {
+		params[k] = []string{v}
+	}
+
+	if method == "GET" {
+		enc := params.Encode()
+		if enc != "" {
+			endpoint = endpoint + "?" + enc
+		}
+		req, err = http.NewRequest(method, endpoint, nil)
+	} else if method == "POST" {
+		b = strings.NewReader(params.Encode())
+		req, err = http.NewRequest(method, endpoint, b)
+	} else {
+		err = fmt.Errorf("Method not supported: %v", method)
+	}
+
 	if err != nil {
+		return []byte{}, err
 	}
-	// req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	resp, err := client.Do(req)
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
+		return []byte{}, err
 	}
-	// fmt.Println(resp.Header)
 	defer resp.Body.Close()
-	bytes, err := ioutil.ReadAll(resp.Body)
-	return bytes, err
+
+	return ioutil.ReadAll(resp.Body)
 }
 
-func ExpireInDays(days int64) int64 {
-	return time.Now().Add(time.Duration(int64(time.Hour) * days * 24)).Unix()
-}
+func (m *Mixpanel) makeRequestWithData(method string, endpoint string, data map[string]interface{}) ([]byte, error) {
+	var resp []byte
 
-func ExpireInHours(hours int64) int64 {
-	return time.Now().Add(time.Duration(int64(time.Hour) * hours)).Unix()
-}
-
-func (m *Mixpanel) EventQuery(params map[string]string) (EventQueryResult, error) {
-	m.BaseUrl = "http://mixpanel.com/api/2.0"
-	bytes, err := m.makeRequest("events/properties", params)
-	// fmt.Println(string(bytes))
-	var result EventQueryResult
-	err = json.Unmarshal(bytes, &result)
-	return result, err
-}
-
-func (m *Mixpanel) ExportQuery(params map[string]string) []ExportQueryResult {
-	m.BaseUrl = "http://data.mixpanel.com/api/2.0"
-	var results []ExportQueryResult
-	bytes, _ := m.makeRequest("export", params)
-	str := string(bytes)
-	// fmt.Println(str)
-	for _, s := range strings.Split(str, "\n") {
-		var result ExportQueryResult
-		json.Unmarshal([]byte(s), &result)
-		results = append(results, result)
+	json, err := json.Marshal(data)
+	if err != nil {
+		return resp, err
 	}
-	return results
-}
 
-func (m *Mixpanel) PeopleQuery(params map[string]string) map[string]interface{} {
-	m.BaseUrl = "http://mixpanel.com/api/2.0"
-	bytes, _ := m.makeRequest("engage", params)
-	str := string(bytes)
-	// fmt.Println(str)
-	var raw map[string]interface{}
-	json.Unmarshal([]byte(str), &raw)
-	return raw
-}
+	fmt.Println(string(json))
 
-func (m *Mixpanel) UserInfo(id string) map[string]interface{} {
-	params := map[string]string{
-		"distinct_id": id,
+	dataStr := base64.StdEncoding.EncodeToString(json)
+	if err != nil {
+		return resp, err
 	}
-	raw := m.PeopleQuery(params)
-	return raw["results"].([]interface{})[0].(map[string]interface{})["$properties"].(map[string]interface{})
+	fmt.Println(string(dataStr))
+
+	return m.makeRequest(method, endpoint, map[string]string{"data": dataStr})
+}
+
+func (m *Mixpanel) Track(distinctId string, event string, params map[string]string) error {
+	if distinctId != "" {
+		params["distinct_id"] = distinctId
+	}
+	params["token"] = m.Token
+	params["mp_lib"] = "timehop/go-mixpanel"
+
+	data := map[string]interface{}{"event": event, "properties": params}
+	resp, err := m.makeRequestWithData("GET", "track", data)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
