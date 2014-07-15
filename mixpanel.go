@@ -92,7 +92,7 @@ func (m *Mixpanel) makeRequestWithData(method string, endpoint string, data map[
 	return m.makeRequest(method, endpoint, map[string]string{"data": dataStr})
 }
 
-func (m *Mixpanel) Track(distinctId string, event string, params map[string]string) error {
+func (m *Mixpanel) Track(distinctId string, event string, params map[string]interface{}) error {
 	if distinctId != "" {
 		params["distinct_id"] = distinctId
 	}
