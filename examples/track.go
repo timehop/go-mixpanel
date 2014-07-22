@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/timehop/go-mixpanel"
 	"os"
 	"strings"
+
+	"github.com/timehop/go-mixpanel"
 )
 
 func usage() {
@@ -25,7 +26,7 @@ func main() {
 		distinctId = os.Args[3]
 	}
 
-	props := map[string]string{}
+	props := map[string]interface{}{}
 	if len(os.Args) >= 5 {
 		for i := 4; i < len(os.Args); i++ {
 			parts := strings.Split(os.Args[i], "=")
