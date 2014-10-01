@@ -34,7 +34,7 @@ func (m *Mixpanel) makeRequest(method string, endpoint string, paramMap map[stri
 	var (
 		err error
 		req *http.Request
-		b   io.Reader
+		r   io.Reader
 	)
 
 	if endpoint == "" {
@@ -57,10 +57,10 @@ func (m *Mixpanel) makeRequest(method string, endpoint string, paramMap map[stri
 		if enc != "" {
 			endpoint = endpoint + "?" + enc
 		}
-		req, err = http.NewRequest(method, endpoint, nil)
+		req, err = http.NewRequest(method, endpoint, r)
 	} else if method == "POST" {
-		b = strings.NewReader(params.Encode())
-		req, err = http.NewRequest(method, endpoint, b)
+		r = strings.NewReader(params.Encode())
+		req, err = http.NewRequest(method, endpoint, r)
 	} else {
 		err = fmt.Errorf("Method not supported: %v", method)
 	}
