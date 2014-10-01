@@ -30,7 +30,7 @@ func NewMixpanel(token string) *Mixpanel {
 	}
 }
 
-func (m *Mixpanel) makeRequest(method string, endpoint string, paramMap map[string]string) ([]byte, error) {
+func (m *Mixpanel) makeRequest(method string, endpoint string, paramMap map[string]string) error {
 	var (
 		err error
 		req *http.Request
@@ -38,7 +38,7 @@ func (m *Mixpanel) makeRequest(method string, endpoint string, paramMap map[stri
 	)
 
 	if endpoint == "" {
-		return []byte{}, errors.New("Endpoint missing")
+		return errors.New("Endpoint missing")
 	}
 
 	endpoint = fmt.Sprintf("%v/%v", m.BaseUrl, endpoint)
@@ -61,34 +61,40 @@ func (m *Mixpanel) makeRequest(method string, endpoint string, paramMap map[stri
 	case "POST":
 		r = strings.NewReader(params.Encode())
 	default:
-		return []byte{}, fmt.Errorf("Method not supported: %v", method)
+		return fmt.Errorf("Method not supported: %v", method)
 	}
 
 	req, err = http.NewRequest(method, endpoint, r)
 	if err != nil {
-		return []byte{}, err
+		return err
 	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return []byte{}, err
+		return err
 	}
 	defer resp.Body.Close()
 
-	return ioutil.ReadAll(resp.Body)
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	// The API documentation states that success will be reported with either "1" or "1\n".
+	if strings.Trim(string(b), "\n") != "1" {
+		return fmt.Errorf("request failed - %s", b)
+	}
+	return nil
 }
 
-func (m *Mixpanel) makeRequestWithData(method string, endpoint string, data Properties) ([]byte, error) {
-	var resp []byte
-
+func (m *Mixpanel) makeRequestWithData(method string, endpoint string, data Properties) error {
 	json, err := json.Marshal(data)
 	if err != nil {
-		return resp, err
+		return err
 	}
 
 	dataStr := base64.StdEncoding.EncodeToString(json)
 	if err != nil {
-		return resp, err
+		return err
 	}
 
 	return m.makeRequest(method, endpoint, map[string]string{"data": dataStr})
@@ -102,10 +108,5 @@ func (m *Mixpanel) Track(distinctId string, event string, props Properties) erro
 	props["mp_lib"] = "timehop/go-mixpanel"
 
 	data := map[string]interface{}{"event": event, "properties": props}
-	_, err := m.makeRequestWithData("GET", "track", data)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return m.makeRequestWithData("GET", "track", data)
 }
