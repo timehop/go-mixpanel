@@ -3,7 +3,6 @@ package mixpanel
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -38,7 +37,7 @@ func (m *Mixpanel) makeRequest(method string, endpoint string, paramMap map[stri
 	)
 
 	if endpoint == "" {
-		return errors.New("Endpoint missing")
+		return fmt.Errorf("endpoint missing")
 	}
 
 	endpoint = fmt.Sprintf("%v/%v", m.BaseUrl, endpoint)
@@ -61,7 +60,7 @@ func (m *Mixpanel) makeRequest(method string, endpoint string, paramMap map[stri
 	case "POST":
 		r = strings.NewReader(params.Encode())
 	default:
-		return fmt.Errorf("Method not supported: %v", method)
+		return fmt.Errorf("method not supported: %v", method)
 	}
 
 	req, err = http.NewRequest(method, endpoint, r)
