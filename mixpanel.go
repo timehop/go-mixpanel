@@ -15,18 +15,33 @@ const (
 	apiBaseUrl = "http://api.mixpanel.com"
 )
 
+// Mixpanel is a client to talk to the API
 type Mixpanel struct {
 	Token   string
 	BaseUrl string
 }
 
+// Properties are key=value pairs that decorate an event or a profile.
 type Properties map[string]interface{}
 
+// NewMixpanel returns a configured client.
 func NewMixpanel(token string) *Mixpanel {
 	return &Mixpanel{
 		Token:   token,
 		BaseUrl: apiBaseUrl,
 	}
+}
+
+// Track sends event data with optional metadata.
+func (m *Mixpanel) Track(distinctId string, event string, props Properties) error {
+	if distinctId != "" {
+		props["distinct_id"] = distinctId
+	}
+	props["token"] = m.Token
+	props["mp_lib"] = "timehop/go-mixpanel"
+
+	data := map[string]interface{}{"event": event, "properties": props}
+	return m.makeRequestWithData("GET", "track", data)
 }
 
 func (m *Mixpanel) makeRequest(method string, endpoint string, paramMap map[string]string) error {
@@ -97,15 +112,4 @@ func (m *Mixpanel) makeRequestWithData(method string, endpoint string, data Prop
 	}
 
 	return m.makeRequest(method, endpoint, map[string]string{"data": dataStr})
-}
-
-func (m *Mixpanel) Track(distinctId string, event string, props Properties) error {
-	if distinctId != "" {
-		props["distinct_id"] = distinctId
-	}
-	props["token"] = m.Token
-	props["mp_lib"] = "timehop/go-mixpanel"
-
-	data := map[string]interface{}{"event": event, "properties": props}
-	return m.makeRequestWithData("GET", "track", data)
 }
