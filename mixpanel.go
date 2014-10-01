@@ -25,6 +25,13 @@ type Mixpanel struct {
 // Properties are key=value pairs that decorate an event or a profile.
 type Properties map[string]interface{}
 
+// Operation is an action performed on a user profile.
+// Typically this is $set or $unset, but others are available.
+type Operation struct {
+	Name   string
+	Values Properties
+}
+
 // NewMixpanel returns a configured client.
 func NewMixpanel(token string) *Mixpanel {
 	return &Mixpanel{
@@ -43,6 +50,18 @@ func (m *Mixpanel) Track(distinctId string, event string, props Properties) erro
 
 	data := map[string]interface{}{"event": event, "properties": props}
 	return m.makeRequestWithData("GET", "track", data)
+}
+
+// Engage updates profile data.
+func (m *Mixpanel) Engage(distinctId string, props Properties, op *Operation) error {
+	if distinctId != "" {
+		props["$distinct_id"] = distinctId
+	}
+	props["$token"] = m.Token
+	props["mp_lib"] = library
+	props[op.Name] = op.Values
+
+	return m.makeRequestWithData("GET", "engage", props)
 }
 
 func (m *Mixpanel) makeRequest(method string, endpoint string, paramMap map[string]string) error {
