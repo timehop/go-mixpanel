@@ -13,6 +13,7 @@ import (
 
 const (
 	apiBaseUrl = "http://api.mixpanel.com"
+	library    = "timehop/go-mixpanel"
 )
 
 // Mixpanel is a client to talk to the API
@@ -38,7 +39,7 @@ func (m *Mixpanel) Track(distinctId string, event string, props Properties) erro
 		props["distinct_id"] = distinctId
 	}
 	props["token"] = m.Token
-	props["mp_lib"] = "timehop/go-mixpanel"
+	props["mp_lib"] = library
 
 	data := map[string]interface{}{"event": event, "properties": props}
 	return m.makeRequestWithData("GET", "track", data)
