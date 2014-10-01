@@ -55,7 +55,7 @@ func (m *Mixpanel) makeRequest(method string, endpoint string, paramMap map[stri
 		return fmt.Errorf("endpoint missing")
 	}
 
-	endpoint = fmt.Sprintf("%v/%v", m.BaseUrl, endpoint)
+	endpoint = fmt.Sprintf("%s/%s", m.BaseUrl, endpoint)
 
 	if paramMap == nil {
 		paramMap = map[string]string{}
