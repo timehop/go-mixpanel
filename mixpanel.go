@@ -21,6 +21,8 @@ type Mixpanel struct {
 	BaseUrl string
 }
 
+type Properties map[string]interface{}
+
 func NewMixpanel(token string) *Mixpanel {
 	return &Mixpanel{
 		Token:   token,
@@ -76,7 +78,7 @@ func (m *Mixpanel) makeRequest(method string, endpoint string, paramMap map[stri
 	return ioutil.ReadAll(resp.Body)
 }
 
-func (m *Mixpanel) makeRequestWithData(method string, endpoint string, data map[string]interface{}) ([]byte, error) {
+func (m *Mixpanel) makeRequestWithData(method string, endpoint string, data Properties) ([]byte, error) {
 	var resp []byte
 
 	json, err := json.Marshal(data)
@@ -92,14 +94,14 @@ func (m *Mixpanel) makeRequestWithData(method string, endpoint string, data map[
 	return m.makeRequest(method, endpoint, map[string]string{"data": dataStr})
 }
 
-func (m *Mixpanel) Track(distinctId string, event string, params map[string]interface{}) error {
+func (m *Mixpanel) Track(distinctId string, event string, props Properties) error {
 	if distinctId != "" {
-		params["distinct_id"] = distinctId
+		props["distinct_id"] = distinctId
 	}
-	params["token"] = m.Token
-	params["mp_lib"] = "timehop/go-mixpanel"
+	props["token"] = m.Token
+	props["mp_lib"] = "timehop/go-mixpanel"
 
-	data := map[string]interface{}{"event": event, "properties": params}
+	data := map[string]interface{}{"event": event, "properties": props}
 	_, err := m.makeRequestWithData("GET", "track", data)
 	if err != nil {
 		return err
