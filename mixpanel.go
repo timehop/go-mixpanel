@@ -22,10 +22,10 @@ type Mixpanel struct {
 }
 
 func NewMixpanel(token string) *Mixpanel {
-	m := new(Mixpanel)
-	m.Token = token
-	m.BaseUrl = apiBaseUrl
-	return m
+	return &Mixpanel{
+		Token:   token,
+		BaseUrl: apiBaseUrl,
+	}
 }
 
 func (m *Mixpanel) makeRequest(method string, endpoint string, paramMap map[string]string) ([]byte, error) {
