@@ -52,19 +52,19 @@ func (m *Mixpanel) makeRequest(method string, endpoint string, paramMap map[stri
 		params[k] = []string{v}
 	}
 
-	if method == "GET" {
+	switch method {
+	case "GET":
 		enc := params.Encode()
 		if enc != "" {
 			endpoint = endpoint + "?" + enc
 		}
-		req, err = http.NewRequest(method, endpoint, r)
-	} else if method == "POST" {
+	case "POST":
 		r = strings.NewReader(params.Encode())
-		req, err = http.NewRequest(method, endpoint, r)
-	} else {
-		err = fmt.Errorf("Method not supported: %v", method)
+	default:
+		return []byte{}, fmt.Errorf("Method not supported: %v", method)
 	}
 
+	req, err = http.NewRequest(method, endpoint, r)
 	if err != nil {
 		return []byte{}, err
 	}
