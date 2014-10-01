@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	mixpanelApiBaseUrl = "http://api.mixpanel.com"
+	apiBaseUrl = "http://api.mixpanel.com"
 )
 
 type Mixpanel struct {
@@ -24,7 +24,7 @@ type Mixpanel struct {
 func NewMixpanel(token string) *Mixpanel {
 	m := new(Mixpanel)
 	m.Token = token
-	m.BaseUrl = mixpanelApiBaseUrl
+	m.BaseUrl = apiBaseUrl
 	return m
 }
 
