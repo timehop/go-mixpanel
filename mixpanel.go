@@ -3,7 +3,6 @@ package mixpanel
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,33 +12,50 @@ import (
 )
 
 const (
-	mixpanelApiBaseUrl = "http://api.mixpanel.com"
+	apiBaseUrl = "http://api.mixpanel.com"
 )
 
+// Mixpanel is a client to talk to the API
 type Mixpanel struct {
 	Token   string
 	BaseUrl string
 }
 
+// Properties are key=value pairs that decorate an event or a profile.
+type Properties map[string]interface{}
+
+// NewMixpanel returns a configured client.
 func NewMixpanel(token string) *Mixpanel {
-	m := new(Mixpanel)
-	m.Token = token
-	m.BaseUrl = mixpanelApiBaseUrl
-	return m
+	return &Mixpanel{
+		Token:   token,
+		BaseUrl: apiBaseUrl,
+	}
 }
 
-func (m *Mixpanel) makeRequest(method string, endpoint string, paramMap map[string]string) ([]byte, error) {
+// Track sends event data with optional metadata.
+func (m *Mixpanel) Track(distinctId string, event string, props Properties) error {
+	if distinctId != "" {
+		props["distinct_id"] = distinctId
+	}
+	props["token"] = m.Token
+	props["mp_lib"] = "timehop/go-mixpanel"
+
+	data := map[string]interface{}{"event": event, "properties": props}
+	return m.makeRequestWithData("GET", "track", data)
+}
+
+func (m *Mixpanel) makeRequest(method string, endpoint string, paramMap map[string]string) error {
 	var (
 		err error
 		req *http.Request
-		b   io.Reader
+		r   io.Reader
 	)
 
 	if endpoint == "" {
-		return []byte{}, errors.New("Endpoint missing")
+		return fmt.Errorf("endpoint missing")
 	}
 
-	endpoint = fmt.Sprintf("%v/%v", m.BaseUrl, endpoint)
+	endpoint = fmt.Sprintf("%s/%s", m.BaseUrl, endpoint)
 
 	if paramMap == nil {
 		paramMap = map[string]string{}
@@ -50,60 +66,50 @@ func (m *Mixpanel) makeRequest(method string, endpoint string, paramMap map[stri
 		params[k] = []string{v}
 	}
 
-	if method == "GET" {
+	switch method {
+	case "GET":
 		enc := params.Encode()
 		if enc != "" {
 			endpoint = endpoint + "?" + enc
 		}
-		req, err = http.NewRequest(method, endpoint, nil)
-	} else if method == "POST" {
-		b = strings.NewReader(params.Encode())
-		req, err = http.NewRequest(method, endpoint, b)
-	} else {
-		err = fmt.Errorf("Method not supported: %v", method)
+	case "POST":
+		r = strings.NewReader(params.Encode())
+	default:
+		return fmt.Errorf("method not supported: %v", method)
 	}
 
-	if err != nil {
-		return []byte{}, err
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return []byte{}, err
-	}
-	defer resp.Body.Close()
-
-	return ioutil.ReadAll(resp.Body)
-}
-
-func (m *Mixpanel) makeRequestWithData(method string, endpoint string, data map[string]interface{}) ([]byte, error) {
-	var resp []byte
-
-	json, err := json.Marshal(data)
-	if err != nil {
-		return resp, err
-	}
-
-	dataStr := base64.StdEncoding.EncodeToString(json)
-	if err != nil {
-		return resp, err
-	}
-
-	return m.makeRequest(method, endpoint, map[string]string{"data": dataStr})
-}
-
-func (m *Mixpanel) Track(distinctId string, event string, params map[string]interface{}) error {
-	if distinctId != "" {
-		params["distinct_id"] = distinctId
-	}
-	params["token"] = m.Token
-	params["mp_lib"] = "timehop/go-mixpanel"
-
-	data := map[string]interface{}{"event": event, "properties": params}
-	_, err := m.makeRequestWithData("GET", "track", data)
+	req, err = http.NewRequest(method, endpoint, r)
 	if err != nil {
 		return err
 	}
 
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	// The API documentation states that success will be reported with either "1" or "1\n".
+	if strings.Trim(string(b), "\n") != "1" {
+		return fmt.Errorf("request failed - %s", b)
+	}
 	return nil
+}
+
+func (m *Mixpanel) makeRequestWithData(method string, endpoint string, data Properties) error {
+	json, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	dataStr := base64.StdEncoding.EncodeToString(json)
+	if err != nil {
+		return err
+	}
+
+	return m.makeRequest(method, endpoint, map[string]string{"data": dataStr})
 }
