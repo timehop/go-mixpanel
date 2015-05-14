@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	apiBaseUrl = "http://api.mixpanel.com"
+	apiBaseURL = "http://api.mixpanel.com"
 	library    = "timehop/go-mixpanel"
 )
 
@@ -36,14 +36,14 @@ type Operation struct {
 func NewMixpanel(token string) *Mixpanel {
 	return &Mixpanel{
 		Token:   token,
-		BaseUrl: apiBaseUrl,
+		BaseUrl: apiBaseURL,
 	}
 }
 
 // Track sends event data with optional metadata.
-func (m *Mixpanel) Track(distinctId string, event string, props Properties) error {
-	if distinctId != "" {
-		props["distinct_id"] = distinctId
+func (m *Mixpanel) Track(distinctID string, event string, props Properties) error {
+	if distinctID != "" {
+		props["distinct_id"] = distinctID
 	}
 	props["token"] = m.Token
 	props["mp_lib"] = library
@@ -53,9 +53,9 @@ func (m *Mixpanel) Track(distinctId string, event string, props Properties) erro
 }
 
 // Engage updates profile data.
-func (m *Mixpanel) Engage(distinctId string, props Properties, op *Operation) error {
-	if distinctId != "" {
-		props["$distinct_id"] = distinctId
+func (m *Mixpanel) Engage(distinctID string, props Properties, op *Operation) error {
+	if distinctID != "" {
+		props["$distinct_id"] = distinctID
 	}
 	props["$token"] = m.Token
 	props["mp_lib"] = library
