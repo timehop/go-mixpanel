@@ -72,6 +72,31 @@ func (m *Mixpanel) Engage(distinctID string, props Properties, op *Operation) er
 	return m.makeRequestWithData("GET", "engage", props)
 }
 
+// TrackingPixel returns a url that, when clicked, will track the given data and then redirect to provided url.
+func (m *Mixpanel) TrackingPixel(distinctID, event string, props Properties) (string, error) {
+	if distinctID != "" {
+		props["$distinct_id"] = distinctID
+	}
+	props["$token"] = m.Token
+	props["mp_lib"] = library
+
+	data := map[string]interface{}{"event": event, "properties": props}
+	json, err := json.Marshal(data)
+	if err != nil {
+		return "", err
+	}
+
+	params := map[string]string{
+		"data": base64.StdEncoding.EncodeToString(json),
+		"img":  "1",
+	}
+	query := url.Values{}
+	for k, v := range params {
+		query[k] = []string{v}
+	}
+	return fmt.Sprintf("%s/%s?%s", m.BaseUrl, "track", query.Encode()), nil
+}
+
 // RedirectURL returns a url that, when clicked, will track the given data and then redirect to provided url.
 func (m *Mixpanel) RedirectURL(distinctId, event, uri string, props Properties) (string, error) {
 	if distinctId != "" {
