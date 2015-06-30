@@ -61,7 +61,7 @@ func (m *Mixpanel) Engage(distinctID string, props Properties, op *Operation) er
 	props["mp_lib"] = library
 	if op.Name == "$unset" {
 		keys := []interface{}{}
-		for key, _ := range op.Values {
+		for key := range op.Values {
 			keys = append(keys, key)
 		}
 		props[op.Name] = keys
@@ -73,9 +73,9 @@ func (m *Mixpanel) Engage(distinctID string, props Properties, op *Operation) er
 }
 
 // RedirectURL returns a url that, when clicked, will track the given data and then redirect to provided url.
-func (m *Mixpanel) RedirectURL(distinctId, event, uri string, props Properties) (string, error) {
-	if distinctId != "" {
-		props["$distinct_id"] = distinctId
+func (m *Mixpanel) RedirectURL(distinctID, event, uri string, props Properties) (string, error) {
+	if distinctID != "" {
+		props["$distinct_id"] = distinctID
 	}
 	props["$token"] = m.Token
 	props["mp_lib"] = library
