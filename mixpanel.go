@@ -72,6 +72,31 @@ func (m *Mixpanel) Engage(distinctID string, props Properties, op *Operation) er
 	return m.makeRequestWithData("GET", "engage", props)
 }
 
+// RedirectURL returns a url that, when clicked, will track the given data and then redirect to provided url.
+func (m *Mixpanel) RedirectURL(distinctId, event, uri string, props Properties) (string, error) {
+	if distinctId != "" {
+		props["$distinct_id"] = distinctId
+	}
+	props["$token"] = m.Token
+	props["mp_lib"] = library
+
+	data := map[string]interface{}{"event": event, "properties": props}
+	json, err := json.Marshal(data)
+	if err != nil {
+		return "", err
+	}
+
+	params := map[string]string{
+		"data":     base64.StdEncoding.EncodeToString(json),
+		"redirect": uri,
+	}
+	query := url.Values{}
+	for k, v := range params {
+		query[k] = []string{v}
+	}
+	return fmt.Sprintf("%s/%s?%s", m.BaseUrl, "track", query.Encode()), nil
+}
+
 func (m *Mixpanel) makeRequest(method string, endpoint string, paramMap map[string]string) error {
 	var (
 		err error
