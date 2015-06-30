@@ -127,9 +127,6 @@ func (m *Mixpanel) makeRequestWithData(method string, endpoint string, data Prop
 	}
 
 	dataStr := base64.StdEncoding.EncodeToString(json)
-	if err != nil {
-		return err
-	}
 
 	return m.makeRequest(method, endpoint, map[string]string{"data": dataStr})
 }
