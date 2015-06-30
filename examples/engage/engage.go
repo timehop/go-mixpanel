@@ -19,7 +19,7 @@ func main() {
 	}
 
 	token := os.Args[1]
-	distinctId := os.Args[2]
+	distinctID := os.Args[2]
 
 	op := &mixpanel.Operation{Name: os.Args[3], Values: map[string]interface{}{}}
 	if op.Name == "" {
@@ -36,7 +36,7 @@ func main() {
 	}
 
 	mp := mixpanel.NewMixpanel(token)
-	err := mp.Engage(distinctId, map[string]interface{}{}, op)
+	err := mp.Engage(distinctID, map[string]interface{}{}, op)
 	if err != nil {
 		fmt.Println("Error occurred:", err)
 	}

@@ -21,9 +21,9 @@ func main() {
 	token := os.Args[1]
 	event := os.Args[2]
 
-	var distinctId string
+	var distinctID string
 	if len(os.Args) >= 4 {
-		distinctId = os.Args[3]
+		distinctID = os.Args[3]
 	}
 
 	props := map[string]interface{}{}
@@ -37,7 +37,7 @@ func main() {
 	}
 
 	mp := mixpanel.NewMixpanel(token)
-	err := mp.Track(distinctId, event, props)
+	err := mp.Track(distinctID, event, props)
 	if err != nil {
 		fmt.Println("Error occurred:", err)
 	}
