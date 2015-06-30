@@ -59,7 +59,15 @@ func (m *Mixpanel) Engage(distinctID string, props Properties, op *Operation) er
 	}
 	props["$token"] = m.Token
 	props["mp_lib"] = library
-	props[op.Name] = op.Values
+	if op.Name == "$unset" {
+		keys := []interface{}{}
+		for key, _ := range op.Values {
+			keys = append(keys, key)
+		}
+		props[op.Name] = keys
+	} else {
+		props[op.Name] = op.Values
+	}
 
 	return m.makeRequestWithData("GET", "engage", props)
 }
