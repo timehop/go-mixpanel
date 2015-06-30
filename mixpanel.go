@@ -16,6 +16,18 @@ const (
 	library    = "timehop/go-mixpanel"
 )
 
+// actionSource describes where the call is originating from.
+// This determines whether or not the location properties on a profile should be updated.
+type actionSource int
+
+const (
+	// sourceUser flags the action as having originated with the user in question.
+	sourceUser actionSource = iota
+	// sourceScript means that the action originated in a backend script.
+	// The IP should not be tracked in this case.
+	sourceScript
+)
+
 // Mixpanel is a client to talk to the API
 type Mixpanel struct {
 	Token   string
@@ -49,11 +61,23 @@ func (m *Mixpanel) Track(distinctID string, event string, props Properties) erro
 	props["mp_lib"] = library
 
 	data := map[string]interface{}{"event": event, "properties": props}
-	return m.makeRequestWithData("GET", "track", data)
+	return m.makeRequestWithData("GET", "track", data, sourceUser)
 }
 
 // Engage updates profile data.
+// This will update the IP and related data on the profile.
+// If you don't have the IP address of the user, then use the UpdateProperties method instead,
+// otherwise the user's location will be set to wherever the script was run from.
 func (m *Mixpanel) Engage(distinctID string, props Properties, op *Operation) error {
+	return m.engage(distinctID, props, op, sourceUser)
+}
+
+// EngageAsScript calls the engage endpoint, but doesn't set IP, city, country, on the profile.
+func (m *Mixpanel) EngageAsScript(distinctID string, props Properties, op *Operation) error {
+	return m.engage(distinctID, props, op, sourceScript)
+}
+
+func (m *Mixpanel) engage(distinctID string, props Properties, op *Operation, as actionSource) error {
 	if distinctID != "" {
 		props["$distinct_id"] = distinctID
 	}
@@ -69,7 +93,7 @@ func (m *Mixpanel) Engage(distinctID string, props Properties, op *Operation) er
 		props[op.Name] = op.Values
 	}
 
-	return m.makeRequestWithData("GET", "engage", props)
+	return m.makeRequestWithData("GET", "engage", props, as)
 }
 
 // RedirectURL returns a url that, when clicked, will track the given data and then redirect to provided url.
@@ -81,13 +105,13 @@ func (m *Mixpanel) RedirectURL(distinctID, event, uri string, props Properties) 
 	props["mp_lib"] = library
 
 	data := map[string]interface{}{"event": event, "properties": props}
-	json, err := json.Marshal(data)
+	b, err := json.Marshal(data)
 	if err != nil {
 		return "", err
 	}
 
 	params := map[string]string{
-		"data":     base64.StdEncoding.EncodeToString(json),
+		"data":     base64.StdEncoding.EncodeToString(b),
 		"redirect": uri,
 	}
 	query := url.Values{}
@@ -153,12 +177,19 @@ func (m *Mixpanel) makeRequest(method string, endpoint string, paramMap map[stri
 	return nil
 }
 
-func (m *Mixpanel) makeRequestWithData(method string, endpoint string, data Properties) error {
+func (m *Mixpanel) makeRequestWithData(method string, endpoint string, data Properties, as actionSource) error {
 	b, err := json.Marshal(data)
 	if err != nil {
 		return err
 	}
 
-	dataStr := base64.StdEncoding.EncodeToString(b)
-	return m.makeRequest(method, endpoint, map[string]string{"data": dataStr})
+	params := map[string]string{
+		"data": base64.StdEncoding.EncodeToString(b),
+	}
+
+	if as == sourceScript {
+		params["ip"] = "0"
+	}
+
+	return m.makeRequest(method, endpoint, params)
 }
