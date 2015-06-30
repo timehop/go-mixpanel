@@ -121,12 +121,12 @@ func (m *Mixpanel) makeRequest(method string, endpoint string, paramMap map[stri
 }
 
 func (m *Mixpanel) makeRequestWithData(method string, endpoint string, data Properties) error {
-	json, err := json.Marshal(data)
+	b, err := json.Marshal(data)
 	if err != nil {
 		return err
 	}
 
-	dataStr := base64.StdEncoding.EncodeToString(json)
+	dataStr := base64.StdEncoding.EncodeToString(b)
 	if err != nil {
 		return err
 	}
