@@ -44,11 +44,6 @@ type Operation struct {
 	Values Properties
 }
 
-type EngageEvent struct {
-	Properties Properties
-	Operation  *Operation
-}
-
 // NewMixpanel returns a configured client.
 func NewMixpanel(token string) *Mixpanel {
 	return &Mixpanel{
@@ -95,8 +90,8 @@ func (m *Mixpanel) Engage(distinctID string, props Properties, op *Operation) er
 }
 
 // BatchEngage is the batch version of Engage
-func (m *Mixpanel) BatchEngage(distinctID string, ee []*EngageEvent) error {
-	return m.batchEngage(distinctID, ee, sourceUser)
+func (m *Mixpanel) BatchEngage(distinctID string, ops []*Operation) error {
+	return m.batchEngage(distinctID, ops, sourceUser)
 }
 
 // EngageAsScript calls the engage endpoint, but doesn't set IP, city, country, on the profile.
@@ -105,8 +100,8 @@ func (m *Mixpanel) EngageAsScript(distinctID string, props Properties, op *Opera
 }
 
 // BatchEngageAsScript is the batch version of EngageAsScript() method.
-func (m *Mixpanel) BatchEngageAsScript(distinctID string, ee []*EngageEvent) error {
-	return m.batchEngage(distinctID, ee, sourceScript)
+func (m *Mixpanel) BatchEngageAsScript(distinctID string, ops []*Operation) error {
+	return m.batchEngage(distinctID, ops, sourceScript)
 }
 
 func (m *Mixpanel) engage(distinctID string, props Properties, op *Operation, as actionSource) error {
@@ -128,11 +123,11 @@ func (m *Mixpanel) engage(distinctID string, props Properties, op *Operation, as
 	return m.makeRequestWithData("GET", "engage", props, as)
 }
 
-func (m *Mixpanel) batchEngage(distinctID string, ee []*EngageEvent, as actionSource) error {
+func (m *Mixpanel) batchEngage(distinctID string, ops []*Operation, as actionSource) error {
 	data := make([]map[string]interface{}, 0)
 
-	for _, e := range ee {
-		props := e.Properties
+	for _, o := range ops {
+		props := make(map[string]interface{})
 
 		if distinctID != "" {
 			props["$distinct_id"] = distinctID
@@ -140,14 +135,14 @@ func (m *Mixpanel) batchEngage(distinctID string, ee []*EngageEvent, as actionSo
 		props["$token"] = m.Token
 		props["mp_lib"] = library
 
-		if e.Operation.Name == "$unset" {
+		if o.Name == "$unset" {
 			keys := []interface{}{}
-			for key := range e.Operation.Values {
+			for key := range o.Values {
 				keys = append(keys, key)
 			}
-			props[e.Operation.Name] = keys
+			props[o.Name] = keys
 		} else {
-			props[e.Operation.Name] = e.Operation.Values
+			props[o.Name] = o.Values
 		}
 
 		data = append(data, props)
