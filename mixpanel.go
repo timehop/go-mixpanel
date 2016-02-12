@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	apiBaseURL = "http://api.mixpanel.com"
-	library    = "timehop/go-mixpanel"
+	apiBaseURL = "https://api.mixpanel.com"
+	library    = "pdevine/go-mixpanel"
 )
 
 // actionSource describes where the call is originating from.
