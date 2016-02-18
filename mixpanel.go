@@ -64,6 +64,23 @@ func (m *Mixpanel) Track(distinctID string, event string, props Properties) erro
 	return m.makeRequestWithData("GET", "track", data, sourceUser)
 }
 
+// BatchTrack is the batch version for Track() method.
+func (m *Mixpanel) BatchTrack(distinctID string, ops []*Operation) error {
+	data := make([]map[string]interface{}, 0)
+
+	for _, op := range ops {
+		if distinctID != "" {
+			op.Values["distinct_id"] = distinctID
+		}
+		op.Values["token"] = m.Token
+		op.Values["mp_lib"] = library
+
+		data = append(data, map[string]interface{}{"event": op.Name, "properties": op.Values})
+	}
+
+	return m.makeBatchRequestWithData("track", data, sourceUser)
+}
+
 // Engage updates profile data.
 // This will update the IP and related data on the profile.
 // If you don't have the IP address of the user, then use the UpdateProperties method instead,
@@ -72,9 +89,19 @@ func (m *Mixpanel) Engage(distinctID string, props Properties, op *Operation) er
 	return m.engage(distinctID, props, op, sourceUser)
 }
 
+// BatchEngage is the batch version of Engage
+func (m *Mixpanel) BatchEngage(distinctID string, ops []*Operation) error {
+	return m.batchEngage(distinctID, ops, sourceUser)
+}
+
 // EngageAsScript calls the engage endpoint, but doesn't set IP, city, country, on the profile.
 func (m *Mixpanel) EngageAsScript(distinctID string, props Properties, op *Operation) error {
 	return m.engage(distinctID, props, op, sourceScript)
+}
+
+// BatchEngageAsScript is the batch version of EngageAsScript() method.
+func (m *Mixpanel) BatchEngageAsScript(distinctID string, ops []*Operation) error {
+	return m.batchEngage(distinctID, ops, sourceScript)
 }
 
 func (m *Mixpanel) engage(distinctID string, props Properties, op *Operation, as actionSource) error {
@@ -94,6 +121,34 @@ func (m *Mixpanel) engage(distinctID string, props Properties, op *Operation, as
 	}
 
 	return m.makeRequestWithData("GET", "engage", props, as)
+}
+
+func (m *Mixpanel) batchEngage(distinctID string, ops []*Operation, as actionSource) error {
+	data := make([]map[string]interface{}, 0)
+
+	for _, o := range ops {
+		props := make(map[string]interface{})
+
+		if distinctID != "" {
+			props["$distinct_id"] = distinctID
+		}
+		props["$token"] = m.Token
+		props["mp_lib"] = library
+
+		if o.Name == "$unset" {
+			keys := []interface{}{}
+			for key := range o.Values {
+				keys = append(keys, key)
+			}
+			props[o.Name] = keys
+		} else {
+			props[o.Name] = o.Values
+		}
+
+		data = append(data, props)
+	}
+
+	return m.makeBatchRequestWithData("engage", data, as)
 }
 
 // TrackingPixel returns a url that, when clicked, will track the given data and then redirect to provided url.
@@ -217,4 +272,21 @@ func (m *Mixpanel) makeRequestWithData(method string, endpoint string, data Prop
 	}
 
 	return m.makeRequest(method, endpoint, params)
+}
+
+func (m *Mixpanel) makeBatchRequestWithData(endpoint string, data []map[string]interface{}, as actionSource) error {
+	b, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	params := map[string]string{
+		"data": base64.StdEncoding.EncodeToString(b),
+	}
+
+	if as == sourceScript {
+		params["ip"] = "0"
+	}
+
+	return m.makeRequest("POST", endpoint, params)
 }
